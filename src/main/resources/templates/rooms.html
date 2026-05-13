@@ -7,6 +7,11 @@
 <body>
     <h1>채팅방 목록</h1>
 
+    <form action="/" method="get">
+        <input type="text" name="username" placeholder="닉네임 입력" th:value="${username}">
+        <button type="submit">닉네임 설정</button>
+    </form>
+
     <form action="/room" method="post">
         <input type="text" name="name" placeholder="채팅방 이름">
         <button type="submit">채팅방 만들기</button>
@@ -14,7 +19,13 @@
 
     <ul>
         <li th:each="room : ${rooms}">
-            <a th:href="@{/room/{id}(id=${room.id})}" th:text="${room.name}"></a>
+            <a th:href="@{/room/{id}(id=${room.id}, username=${username})}" th:text="${room.name}"></a>
+            <span th:if="${unreadCounts[room.id] > 0}"
+                  th:text="'(' + ${unreadCounts[room.id]} + ')'">
+            </span>
+            <form th:action="@{/room/{id}/delete(id=${room.id})}" method="post" style="display:inline">
+                <button type="submit">삭제</button>
+            </form>
         </li>
     </ul>
 </body>

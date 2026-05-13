@@ -1,0 +1,23 @@
+package com.chat.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import com.chat.dto.ChatMessageDto;
+
+@Configuration
+public class RedisConfig {
+
+    @Bean
+    public RedisTemplate<String, ChatMessageDto> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, ChatMessageDto> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new Jackson2JsonRedisSerializer<>(ChatMessageDto.class));
+        return template;
+    }
+}

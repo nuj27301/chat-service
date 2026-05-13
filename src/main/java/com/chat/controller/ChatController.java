@@ -18,9 +18,12 @@ public class ChatController {
     public void message(ChatMessageDto dto) {
         if (ChatMessageDto.MessageType.ENTER.equals(dto.getType())) {
             dto.setContent(dto.getSender() + "님이 입장했습니다.");
+            // 입장 시 읽음 처리
+            chatService.markAsRead(dto.getRoomId(), dto.getSender());
         } else if (ChatMessageDto.MessageType.LEAVE.equals(dto.getType())) {
             dto.setContent(dto.getSender() + "님이 퇴장했습니다.");
         } else {
+            dto.setIsRead(false);
             chatService.saveMessage(dto);
         }
         messagingTemplate.convertAndSend("/sub/chat/room/" + dto.getRoomId(), dto);

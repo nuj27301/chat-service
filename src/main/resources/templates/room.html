@@ -8,15 +8,18 @@
 </head>
 <body>
     <h1 th:text="${room.name}">채팅방</h1>
-    <a href="/">목록으로</a>
+    <a th:href="@{/(username=${username})}">목록으로</a>
 
     <div id="messages">
         <div th:each="msg : ${messages}">
             <b th:text="${msg.sender}"></b>: <span th:text="${msg.content}"></span>
+            <form th:action="@{/room/{roomId}/message/{messageId}/delete(roomId=${room.id}, messageId=${msg.id})}" method="post" style="display:inline">
+                <button type="submit">삭제</button>
+            </form>
         </div>
     </div>
 
-    <input type="text" id="sender" placeholder="닉네임">
+    <input type="text" id="sender" th:value="${username}" placeholder="닉네임">
     <input type="text" id="content" placeholder="메시지 입력">
     <button onclick="sendMessage()">전송</button>
 
@@ -56,6 +59,14 @@
 
             document.getElementById('content').value = '';
         }
+
+        window.addEventListener('beforeunload', function() {
+            stompClient.send('/pub/chat/message', {}, JSON.stringify({
+                type: 'LEAVE',
+                roomId: roomId,
+                sender: document.getElementById('sender').value || '익명'
+            }));
+        });
     </script>
 </body>
 </html>

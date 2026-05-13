@@ -26,6 +26,9 @@ public class Message {
 
     private LocalDateTime sentAt;
 
+    @Builder.Default
+    private boolean isRead = false;
+
     @PrePersist
     public void prePersist() {
         this.sentAt = LocalDateTime.now();
