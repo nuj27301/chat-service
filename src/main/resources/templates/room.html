@@ -3,70 +3,310 @@
 <head>
     <meta charset="UTF-8">
     <title th:text="${room.name}">채팅방</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-</head>
-<body>
-    <h1 th:text="${room.name}">채팅방</h1>
-    <a th:href="@{/(username=${username})}">목록으로</a>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    <div id="messages">
-        <div th:each="msg : ${messages}">
-            <b th:text="${msg.sender}"></b>: <span th:text="${msg.content}"></span>
-            <form th:action="@{/room/{roomId}/message/{messageId}/delete(roomId=${room.id}, messageId=${msg.id})}" method="post" style="display:inline">
-                <button type="submit">삭제</button>
-            </form>
-        </div>
-    </div>
-
-    <input type="text" id="sender" th:value="${username}" placeholder="닉네임">
-    <input type="text" id="content" placeholder="메시지 입력">
-    <button onclick="sendMessage()">전송</button>
-
-    <script th:inline="javascript">
-        const roomId = [[${room.id}]];
-        let stompClient = null;
-
-        const socket = new SockJS('/ws-chat');
-        stompClient = Stomp.over(socket);
-
-        stompClient.connect({}, function() {
-            stompClient.subscribe('/sub/chat/room/' + roomId, function(message) {
-                const msg = JSON.parse(message.body);
-                const div = document.createElement('div');
-                div.innerHTML = '<b>' + msg.sender + '</b>: ' + msg.content;
-                document.getElementById('messages').appendChild(div);
-            });
-
-            stompClient.send('/pub/chat/message', {}, JSON.stringify({
-                type: 'ENTER',
-                roomId: roomId,
-                sender: document.getElementById('sender').value || '익명'
-            }));
-        });
-
-        function sendMessage() {
-            const sender = document.getElementById('sender').value || '익명';
-            const content = document.getElementById('content').value;
-            if (!content) return;
-
-            stompClient.send('/pub/chat/message', {}, JSON.stringify({
-                type: 'TALK',
-                roomId: roomId,
-                sender: sender,
-                content: content
-            }));
-
-            document.getElementById('content').value = '';
+        :root {
+            --bg: #0a0a0f;
+            --surface: #111118;
+            --border: #1e1e2e;
+            --neon: #00f5a0;
+            --neon-dim: rgba(0, 245, 160, 0.15);
+            --neon-glow: 0 0 20px rgba(0, 245, 160, 0.4);
+            --text: #e0e0e0;
+            --muted: #555570;
+            --danger: #ff4466;
+            --me: rgba(0, 245, 160, 0.08);
+            --other: #111118;
         }
 
-        window.addEventListener('beforeunload', function() {
-            stompClient.send('/pub/chat/message', {}, JSON.stringify({
-                type: 'LEAVE',
-                roomId: roomId,
-                sender: document.getElementById('sender').value || '익명'
-            }));
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Noto Sans KR', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at 20% 50%, rgba(0, 245, 160, 0.03) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .back-btn {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-decoration: none;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.4rem 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover { color: var(--neon); border-color: var(--neon); }
+
+        .room-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 1rem;
+            color: var(--neon);
+            text-shadow: var(--neon-glow);
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .messages::-webkit-scrollbar { width: 4px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .msg {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            animation: fadeUp 0.3s ease;
+            max-width: 80%;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg.system {
+            align-self: center;
+            max-width: 100%;
+        }
+
+        .msg.system .bubble {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 0.75rem;
+            font-family: 'Space Mono', monospace;
+            padding: 0.2rem 0;
+        }
+
+        .msg.mine { align-self: flex-end; flex-direction: row-reverse; }
+
+        .bubble {
+            background: var(--other);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            border-top-left-radius: 2px;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        .msg.mine .bubble {
+            background: var(--me);
+            border-color: rgba(0, 245, 160, 0.2);
+            border-top-left-radius: 12px;
+            border-top-right-radius: 2px;
+        }
+
+        .sender {
+            font-size: 0.7rem;
+            color: var(--neon);
+            font-family: 'Space Mono', monospace;
+            margin-bottom: 0.2rem;
+        }
+
+        .msg.mine .sender { text-align: right; }
+
+        .delete-btn {
+            opacity: 0;
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 0.2rem;
+            transition: opacity 0.2s;
+            align-self: center;
+        }
+
+        .msg:hover .delete-btn { opacity: 1; }
+
+        .input-area {
+            padding: 1rem 1.5rem;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 0.7rem;
+            align-items: center;
+        }
+
+        .nickname-badge {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--neon);
+            background: var(--neon-dim);
+            border: 1px solid rgba(0, 245, 160, 0.3);
+            border-radius: 6px;
+            padding: 0.4rem 0.7rem;
+            white-space: nowrap;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.7rem 1rem;
+            color: var(--text);
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--neon);
+            box-shadow: 0 0 0 3px rgba(0, 245, 160, 0.1);
+        }
+
+        .send-btn {
+            background: var(--neon-dim);
+            border: 1px solid var(--neon);
+            color: var(--neon);
+            border-radius: 8px;
+            padding: 0.7rem 1.2rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            background: var(--neon);
+            color: var(--bg);
+            box-shadow: var(--neon-glow);
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a class="back-btn" th:href="@{/(username=${username})}">← 목록</a>
+    <div class="room-title">// <span th:text="${room.name}"></span></div>
+</div>
+
+<div class="messages" id="messages">
+    <div th:each="msg : ${messages}"
+         th:classappend="${msg.sender == username} ? 'mine' : ''"
+         class="msg">
+        <div>
+            <div class="sender" th:text="${msg.sender}"></div>
+            <div class="bubble" th:text="${msg.content}"></div>
+        </div>
+        <form th:action="@{/room/{roomId}/message/{messageId}/delete(roomId=${room.id}, messageId=${msg.id})}"
+              method="post">
+            <button type="submit" class="delete-btn">✕</button>
+        </form>
+    </div>
+</div>
+
+<div class="input-area">
+    <div class="nickname-badge" th:text="${username}"></div>
+    <input type="hidden" id="sender" th:value="${username}">
+    <input type="text" id="content" placeholder="메시지를 입력하세요..." autocomplete="off"
+           onkeydown="if(event.key==='Enter') sendMessage()">
+    <button class="send-btn" onclick="sendMessage()">전송</button>
+</div>
+
+<script th:inline="javascript">
+    const roomId = [[${room.id}]];
+    const username = [[${username}]];
+    let stompClient = null;
+
+    const messagesEl = document.getElementById('messages');
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    const socket = new SockJS('/ws-chat');
+    stompClient = Stomp.over(socket);
+    stompClient.debug = null;
+
+    stompClient.connect({}, function() {
+        stompClient.subscribe('/sub/chat/room/' + roomId, function(message) {
+            const msg = JSON.parse(message.body);
+            if (msg.type === 'TALK') {
+                const isMe = msg.sender === username;
+                const div = document.createElement('div');
+                div.className = 'msg' + (isMe ? ' mine' : '');
+                div.style.animation = 'fadeUp 0.3s ease';
+                div.innerHTML = `
+                    <div>
+                        <div class="sender">${msg.sender}</div>
+                        <div class="bubble">${msg.content}</div>
+                    </div>
+                `;
+                messagesEl.appendChild(div);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            } else {
+                const div = document.createElement('div');
+                div.className = 'msg system';
+                div.innerHTML = `<div class="bubble">${msg.content}</div>`;
+                messagesEl.appendChild(div);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
         });
-    </script>
+
+        stompClient.send('/pub/chat/message', {}, JSON.stringify({
+            type: 'ENTER',
+            roomId: roomId,
+            sender: username || '익명'
+        }));
+    });
+
+    function sendMessage() {
+        const content = document.getElementById('content').value.trim();
+        if (!content) return;
+
+        stompClient.send('/pub/chat/message', {}, JSON.stringify({
+            type: 'TALK',
+            roomId: roomId,
+            sender: username || '익명',
+            content: content
+        }));
+
+        document.getElementById('content').value = '';
+    }
+
+    window.addEventListener('beforeunload', function() {
+        stompClient.send('/pub/chat/message', {}, JSON.stringify({
+            type: 'LEAVE',
+            roomId: roomId,
+            sender: username || '익명'
+        }));
+    });
+</script>
 </body>
 </html>
