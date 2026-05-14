@@ -89,6 +89,7 @@ public class ChatService {
         List<Message> messages = messageRepository.findByChatRoomIdOrderBySentAtAsc(roomId);
         List<ChatMessageDto> dtos = messages.stream()
                 .map(m -> ChatMessageDto.builder()
+                        .id(m.getId())
                         .type(ChatMessageDto.MessageType.TALK)
                         .roomId(roomId)
                         .sender(m.getSender())

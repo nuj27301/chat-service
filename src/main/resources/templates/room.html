@@ -2,6 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <title th:text="${room.name}">채팅방</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
@@ -215,8 +216,13 @@
 <body>
 
 <div class="header">
-    <a class="back-btn" th:href="@{/(username=${username})}">← 목록</a>
-    <div class="room-title">// <span th:text="${room.name}"></span></div>
+    <a class="back-btn" th:href="@{/(username=${username})}">
+        <i class="fa-solid fa-arrow-left"></i> 목록
+    </a>
+    <div class="room-title">
+        <i class="fa-solid fa-comment-dots"></i>
+        <span th:text="${room.name}"></span>
+    </div>
 </div>
 
 <div class="messages" id="messages">
